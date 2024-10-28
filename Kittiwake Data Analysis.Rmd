@@ -1,0 +1,614 @@
+---
+title: "Analysis of Data on Kittiwakes using Statistical Methods"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+##Import/call necessary libraries
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+#library(reshape2)
+library(tidyverse)
+library(tidyr)
+library(rstatix)
+library(dplyr)
+#install.packages("scatterplot3d")
+library(scatterplot3d)
+#install.packages("corrplot")
+library(corrplot)
+```
+
+##Task 1 - Import Observation Data
+
+```{r}
+#Read the CSV file "Kittiwake_Observation_20591455.csv"
+observation_data <- read.csv("Kittiwake_Observation_20591455.csv") 
+
+#Display the first six rows from the observation_data
+head(observation_data)
+
+#Get the dimensions of the dataset
+dim_data <- dim(observation_data)
+
+#Print the dimensions of the dataset
+cat(paste("There are", dim_data[1], "rows and", dim_data[2], "columns in the given dataset."))
+```
+
+#Exploratory Analysis of Observation Data
+
+```{r}
+#Inspect the structure of observation data
+str(observation_data)
+```
+
+Summary Statistics of Observation Data.
+
+```{r}
+#Display minimum value, value of 1st quartile, median, mean, 3rd quartile and maximum value of each column
+summary(observation_data)
+
+#Calculate standard deviation of all columns
+sd_obsData <- sapply(observation_data, sd)
+
+#Print the Standard Deviation of each column
+cat("\nStandard Deviation of each column of the Observation Data is\n")
+print(sd_obsData)
+```
+
+##Construct boxplots for Observation Data
+
+```{r}
+#Melt the data to long format for ggplot
+observation_data_long <- tidyr::gather(observation_data, key = "Time", value = "No_of_kittiwakes", dawn, noon, mid.afternoon, dusk)
+
+#Calculate summary statistics - mean, minimum value and maximum value
+summary_stats <- observation_data_long %>%
+  group_by(Time) %>%
+  summarize(mean_value = round(mean(No_of_kittiwakes)),
+  min_value = min(No_of_kittiwakes),
+  max_value = max(No_of_kittiwakes)
+  )
+
+# Create a boxplot using ggplot2 that displays mean, minimum and maximum values
+ggplot(observation_data_long, aes(x = Time, y = No_of_kittiwakes, fill = Time)) +
+  geom_boxplot() +
+  stat_summary(fun.data = "mean_cl_normal", geom = "point", color = "yellow", size = 1, position = position_dodge(width = 0.5)) + 
+  geom_text(data = summary_stats, aes(x = Time, y = mean_value, label = paste("Mean:", mean_value)), vjust = -0.5, hjust = -0.2, color = "brown", size = 3) +
+  geom_text(data = summary_stats, aes(x = Time, y = max_value, label = paste("Max:", max_value)), vjust = -0.1, hjust = -0.2, color = "darkblue", size = 3) +
+  geom_text(data = summary_stats, aes(x = Time, y = min_value, label = paste("Min:", min_value)), vjust = 0.1, hjust = -0.2, color = "blue", size = 3) +
+  labs(title = "Distribution of Observation Data",
+       x = "Span of the Day",
+       y = "No. of Kittiwakes") +
+    theme(legend.position = "none")
+```
+
+##Construct a 80% confidence interval for the mean number of kittiwakes
+observed at dawn
+
+```{r}
+#Calculate mean of the observations made at dawn
+mean_dawn <- mean(observation_data$dawn)
+
+#Calculate standard deviation of the observations made at dawn
+sd_dawn<-sd(observation_data$dawn)
+
+#Calculate standard error of the mean (of the observations made at dawn)
+stdErr_meanDawn<-sd_dawn/(sqrt(length(observation_data$dawn)))
+
+#Print Mean, Standard Deviation and Standard Error of the Mean calculated
+cat("\nThe Mean of the observations made at dawn is:", mean_dawn, "\n")
+cat("\nThe Standard Deviation of the observations made at dawn is:", sd_dawn, "\n")
+cat("\nThe Standard Error of the Mean (of the observations made at dawn):", stdErr_meanDawn, "\n")
+
+#Set the confidence level
+confidence_level <- 0.80
+
+#Calculate critical t-value
+t_value <- qt((1 + confidence_level) / 2, df= length(observation_data$dawn) - 1)
+
+#Calculate margin of error
+margin_of_error <- t_value*stdErr_meanDawn
+
+#Calculate confidence interval
+confidence_interval <- c(mean_dawn - margin_of_error, mean_dawn + margin_of_error)
+
+#Display the confidence interval
+cat("\n80% Confidence Interval:", confidence_interval, "\n")
+```
+
+##Visualize the confidence interval using box plot
+
+```{r}
+#Calculate the number of observations for dawn
+n = length(observation_data$dawn)
+
+#Construct a boxplot to visualize the confidence interval
+confidence_interval_plot <- ggplot(observation_data, aes(x = 1, y = dawn)) + geom_boxplot(fill = "lightyellow") +  geom_point(aes(y = mean_dawn), color = "red", size = 3) + geom_errorbar(aes(ymin = mean_dawn - qt(0.995, n - 1) * sd(dawn) / sqrt(n), ymax = mean_dawn + qt(0.995, n - 1) * sd_dawn / sqrt(n)), width = 0.2, color = "red") + labs(title = "Confidence Interval for Dawn Population", x = "", y = "Dawn Population") + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+#Display the boxplot created
+print(confidence_interval_plot)
+```
+
+##Task 2 - Import Historical Data
+
+```{r}
+#Read the CSV file "Kittiwake_Historical_20591455.csv"
+historical_data<-read.csv("Kittiwake_Historical_20591455.csv")
+
+#Display the first six rows from the historical_data
+head(historical_data)
+
+#Get the dimensions of the dataset
+dim_data <- dim(historical_data)
+
+#Print the dimensions of the dataset
+cat(paste("There are", dim_data[1], "rows and", dim_data[2], "columns in the given dataset."))
+```
+
+##Exploratory Analysis of Historical Data
+
+```{r}
+#Assign name to the first column
+colnames(historical_data)[1] <- "Year"
+
+#Inspect the structure of historical_data
+str(historical_data)
+```
+
+Summary Statistics of Historical Data.
+
+```{r}
+#Display minimum value, value of 1st quartile, median, mean, 3rd quartile and maximum value of each column except the Year column
+summary(historical_data[,2:7])
+
+#Calculate standard deviation of all columns
+sd_histData <- sapply(historical_data[,2:7], sd)
+
+#Print the Standard Deviation of each column
+cat("\nStandard Deviation of each column of the Historical Data (except for the Year column) is\n")
+print(sd_histData)
+```
+
+##Visualize the Historical Data
+
+```{r}
+#Melt the data to long format for ggplot
+historical_data_long <- tidyr::gather(historical_data, key = "Site", value = "BreedingPairs", -Year)       
+
+# Create a bar plot
+ggplot(historical_data_long, aes(x = Site, y = BreedingPairs, fill = Year)) +
+  geom_col(position = "identity", width = 0.7) +  # Use geom_col for horizontal bars
+  labs(title = "Number of Breeding Pairs at Different Sites Over Time",
+       x = "Site",
+       y = "Number of Breeding Pairs") +
+  theme_minimal()
+```
+
+##Verify if the Historical data support the ornithologist's hypothesis
+that the decline in kittiwake numbers,over time, is independent of site.
+Null Hypothesis - The decline in kittiwake numbers, over time, is
+independent of site. Alternative Hypothesis - The decline in kittiwake
+numbers, over time, is dependent of site.
+
+```{r}
+# Convert the data to long format
+long_data <- pivot_longer(historical_data, cols = -Year, names_to = "Site", values_to = "Breeding")
+ 
+# Display the long-format data frame
+long_data
+ 
+# Create a contingency table
+contingency_table <- xtabs(Breeding ~ Year + Site, data = long_data)
+ 
+# Display the contingency table
+cat("\n")
+print(contingency_table)
+ 
+breedingpair_yearwise<-rowSums(contingency_table) 
+breedingpair_sitewise<-colSums(contingency_table)  
+N<-sum(contingency_table) # Total number of Breeding pairs
+expected<-breedingpair_yearwise%*%t(breedingpair_sitewise)/N 
+ 
+rownames(expected)=historical_data$Year 
+cat("\n\nExpected values\n\n")
+expected
+ 
+#Finding Chi-square value between Expected and Observed
+chi_test<-sum((contingency_table - expected)^2/expected)
+cat("\n\nChi-Square Value =",chi_test)
+ 
+# Degrees of freedom (df)
+degrees_of_freedom <- 30 
+ 
+# Significance level (alpha)
+alpha <- 0.05  
+ 
+#Chi square critical value
+chi_critical_value <- qchisq(1 - alpha, df = degrees_of_freedom)
+cat("\nChi-Square Critical Value =",chi_critical_value)
+
+
+```
+
+As Chi-Square Critical Value is lesser than the Chi-Square Value, we fail to reject the Null Hypothesis. Therefore, the decline in kittiwake numbers, over time, is independent of site.
+
+##Estimate the number of breeding pairs at Site C in the year 2009
+
+```{r}
+#Construct a linear model to estimate the number of breeding pairs at Site C
+histData_linearModel <- lm(Site.C ~ Year, data = historical_data)
+
+#Display the linear model
+histData_linearModel
+```
+
+##Estimate the number of breeding pair for the Year 2009
+
+```{r}
+#Predict the number of breeding pairs for the year 2009 with Confidence Interval
+predict_2009 <- predict(histData_linearModel, newdata = data.frame(Year = 2009), interval = 'confidence')
+
+#Take absolute value of the result obtained
+abs_predict_kittiwakes <- round(predict_2009)
+
+#Print the confidence interval
+print("The Confidence Interval for the estimation is:")#, abs_predict_kittiwakes, '\n')
+abs_predict_kittiwakes
+
+#Print the results of the prediction
+cat(paste('\n', "The estimated number of breeding pairs of Kittiwakes for the year 2009 at Site C is:", abs_predict_kittiwakes[1]))
+```
+
+##Task 3 - Import Measurement Data
+
+```{r}
+#Read the CSV file "Kittiwake_Measurement_20591455.csv"
+measurement_data<-read.csv("Kittiwake_Measurement_20591455.csv")
+
+#Display the first six rows from the measurement_data
+head(measurement_data)
+
+#Get the dimensions of the dataset
+dim_data <- dim(measurement_data)
+
+#Print the dimensions of the dataset
+cat(paste("There are", dim_data[1], "rows and", dim_data[2], "columns in the given dataset."))
+```
+
+##Exploratory Analysis of Measurement Data
+
+```{r}
+#Inspect the structure of Measurement data
+str(measurement_data)
+```
+
+Summary of the Statistics of Measurement Data
+
+```{r}
+#Display minimum value, value of 1st quartile, median, mean, 3rd quartile and maximum value of each column
+summary(measurement_data)
+```
+
+Calculate Standard Deviation for Measurement Data.
+
+```{r}
+#Calculate standard deviation for columns - Weight, Wingspan and Culmen
+sd_measurement_data <- apply(measurement_data[, 2:4], 2, sd)
+
+#Display the standard deviation calculated
+cat("The Standard Deviation for the measurement data is")
+print(sd_measurement_data)
+
+#Calculate standard deviation for each category across columns Weight, Wingspan and Culmen grouping by sub species
+col_measurement <- c(1, 2, 3)
+sd_subSpecies <- measurement_data %>%
+  group_by(Sub.species) %>%
+  summarise(across(col_measurement, sd, .names = "{.col}_sd"))
+
+#Display the standard deviation calculated for each category across columns Weight, Wingspan and Culmen 
+print(sd_subSpecies)
+```
+
+##Visual Summary of measurement data Boxplot for each feature by
+sub-species.
+
+```{r}
+#Plot box plot for Weight by Sub-species
+ggplot(measurement_data, aes(x = Sub.species, y = Weight)) + 
+  geom_boxplot() +
+  labs(title = "Weight by Sub-Species",
+       x = "Sub-Species",
+       y = "Weight (g)")
+
+#Plot box plot for Wingspan by Sub-species
+ggplot(measurement_data, aes(x = Sub.species, y = Wingspan)) + 
+  geom_boxplot() +
+  labs(title = "Wingspan by Sub-Species",
+       x = "Sub-Species",
+       y = "Wingspan (cm)")
+
+ #Plot box plot for Culmen Length by Sub-species
+ggplot(measurement_data, aes(x = Sub.species, y = Culmen)) + 
+  geom_boxplot() +
+  labs(title = "Culmen Length by Sub-Species",
+       x = "Sub-Species",
+       y = "Culmen Length (mm)")
+```
+
+Scatterplot of wingspan vs culmen length.
+
+```{r}
+#Plot scatterplot of Wingspan vs Culmen length
+ggplot(measurement_data, aes(x = Wingspan, y = Culmen)) +
+  geom_point(aes(color = Sub.species)) +
+  labs(title = "Wingspan vs Culmen Length",
+       x = "Wingspan (cm)",  
+       y = "Culmen Length (mm)")
+```
+
+##Test if Wingspan and Culmen are independent for each sub-species Null
+hypothesis - The wingspan and culmen length, of a Kittiwake, are
+independent of each other. Alternative hypothesis - The wingspan and
+culmen length, of a Kittiwake, are dependent of each other.
+
+Testing the hypothesis for Black-legged Kittiwake
+
+```{r}
+#Separate the Black-legged Kittiwake data
+blackLeggedKittiwakes <- subset(measurement_data, Sub.species == "Black-legged")
+
+#Use Pearson method of correlation test to test the independence
+corrTestBlack <- cor.test(blackLeggedKittiwakes$Wingspan, blackLeggedKittiwakes$Culmen, method = "pearson")
+
+#Display the correlation result
+print(corrTestBlack)
+
+```
+
+```{r}
+#Conclusion of the test
+if (corrTestBlack$p.value > 0.05) {
+  print("We fail to reject the Null Hypothesis. Hence, wing span and culmen length are independent of each other.")
+} else {
+  print("We reject the Null Hypothesis. Hence, wing span and culmen length are dependent of each other.")
+}
+```
+
+Testing the hypothesis for Red-legged Kittiwake
+
+```{r}
+#Separate the Red-legged Kittiwake data
+redLeggedKittiwakes <- subset(measurement_data, Sub.species == "Red-legged")
+
+#Use Pearson method of correlation test to test the independence
+corrTestRed <- cor.test(redLeggedKittiwakes$Wingspan, redLeggedKittiwakes$Culmen, method = "pearson")
+
+#Display the correlation result
+print(corrTestRed)
+```
+
+```{r}
+#Conclusion of the test
+if (corrTestRed$p.value > 0.05) {
+  print("We fail to reject the Null Hypothesis. Hence, wing span and culmen length are independent of each other.")
+} else {
+  print("We reject the Null Hypothesis. Hence, wing span and culmen length are dependent of each other.")
+}
+```
+
+##Analyse if there is an evidence that the weights of birds of the two
+sub-species are different Let us consider the following: Null
+Hypothesis: The average weight of the two sub-species of Kittiwakes are
+same. Alternative Hypothesis: The average weight of the two sub-species
+of Kittiwakes are not same.
+
+```{r}
+#Conduct a t-test to assess if the weights are same
+t_test_weight <- t.test(blackLeggedKittiwakes$Weight, redLeggedKittiwakes$Weight)
+
+#Print the result
+cat("Test Statistic:", t_test_weight$statistic, "\n")
+cat("Degrees of Freedom:", t_test_weight$parameter, "\n")
+cat("P-value:", t_test_weight$p.value, "\n")
+```
+
+```{r}
+#Conclusion of the test
+if (t_test_weight$p.value > 0.05) {
+  print("We fail to reject the Null Hypothesis. Hence, the weights of birds of the two sub-species are same.")
+} else {
+  print("We reject the Null Hypothesis. Hence, the weights of birds of the two sub-species are different")
+}
+```
+
+##Analyse if there is an evidence that there is a difference between the
+two sub-species of Kittiwakes
+
+```{r}
+#Perform ANOVA for Weight
+anova_weight <- aov(Weight ~ Sub.species, data = measurement_data)
+
+#Print ANOVA result for Weight
+cat("ANOVA for Weight:\n")
+print(summary(anova_weight))
+cat("\n")
+
+#Perform ANOVA for Wingspan
+anova_wingspan <- aov(Wingspan ~ Sub.species, data = measurement_data)
+
+#Print ANOVA result for Wingspan
+cat("ANOVA for Wingspan:\n")
+print(summary(anova_wingspan))
+cat("\n")
+
+#Perform ANOVA for Culmen
+anova_culmen <- aov(Culmen ~ Sub.species, data = measurement_data)
+
+#Print ANOVA result for Culmen
+cat("ANOVA for Culmen:\n")
+print(summary(anova_culmen))
+cat("\n")
+```
+
+##Perform post-hoc test for better to understand the statistical
+significance of Culmen As the p-value for Culmen from the ANOVA test
+result is closer
+
+```{r}
+#Perform Tukey HSD to determine the variance based on Culmen
+tukey_result = TukeyHSD(anova_culmen, conf.level=.95)
+tukey_result
+```
+
+The adjusted p-value for the Sub-species comparison is 0.1381. This
+p-value is higher than the conventional significance level of 0.05.
+Therefore, based on this adjusted p-value, we do not have sufficient
+evidence to reject the null hypothesis that there is no difference
+between the two sub-species.
+
+```{r}
+
+#Plot Tukey HSD for Culmen with Confidence Interval
+plot(tukey_result, col = "green", las = 0.2)#, main = "Tukey HSD for Culmen")
+```
+
+##Task 4 - Import Location Data
+
+```{r}
+#Reading the CSV file "Kittiwake_Location_20591455.csv"
+location_data<-read.csv("Kittiwake_Location_20591455.csv") 
+
+#Displaying the first six rows from the location_data
+head(location_data)
+
+#Get the dimensions of the dataset
+dim_data <- dim(location_data)
+
+#Print the dimensions of the dataset
+cat(paste("There are", dim_data[1], "rows and", dim_data[2], "columns in the given dataset."))
+```
+
+##Exploratory Analysis of Location Data
+
+```{r}
+#Inspect the structure of location data
+str(location_data)
+```
+
+Summary Statistics of Observation Data.
+
+```{r}
+#Display minimum value, value of 1st quartile, median, mean, 3rd quartile and maximum value of each column except the Coastal Direction
+summary(location_data[,2:5])
+
+#Calculate standard deviation of all columns
+sd_locData <- sapply(historical_data[,2:5], sd)
+
+#Print the Standard Deviation of each column
+cat("\nStandard Deviation of each column of the Historical Data (except for the Coastal Direction column) is\n")
+print(sd_locData)
+```
+
+##Fit a linear model to predict the number of breeding pairs
+
+```{r}
+#Fit a linear model with Breeding.pairs as the response variable and everything else "." as covariates
+linear_model <- lm(Breeding.pairs~.,data=location_data)
+
+# Display the summary of the linear model
+summary(linear_model)
+```
+
+```{r}
+#Fit a linear model with Breeding.pairs as the response variable and cliff.height as covariate
+linear_modelh <- lm(Breeding.pairs~cliff.height,data=location_data)
+
+# Display the summary of the linear model
+summary(linear_modelh)
+```
+
+```{r}
+#Calculate the AIC of the linear model fitted earlier
+AIC(linear_model)
+```
+
+#Choose the most appropriate linear model for the data
+
+```{r}
+# Remove each covariate in turn. Stop when no further reduction in AIC can be found
+bestmodel<-step(linear_model)
+```
+
+```{r}
+#Display the summary of best model
+summary(bestmodel)
+```
+
+The best model can be predicted with Coastal direction, sandeel and
+cliff height
+
+##Fit a linear model to the logarithm of the number of breeding pair
+
+```{r}
+#Fit a linear model with Breeding.pairs as the response variable and  everything else "." as covariates
+log_linear_model <- lm(log(Breeding.pairs)~.,data=location_data)
+
+#Display the summary of the log linear model
+summary(log_linear_model)
+```
+
+```{r}
+# Remove each covariate in turn. Stop when no further reduction in AIC can be found
+log_bestmodel<-step(log_linear_model)
+```
+
+```{r}
+#Display the summary of best log linear model
+summary(log_bestmodel)
+```
+
+##Comment on the model fit and affect of the selected covariates on the
+number of breeding pairs
+
+```{r}
+#Display the summary of best linear model
+summary(bestmodel)
+
+#Display the summary of best log linear model
+summary(log_bestmodel)
+```
+
+Comparing the Adjusted R-squared and Residuals, linear model has both
+values higher than the log linear model. The Adjusted R-Squared are
+almost same for both the models. Considering the value of residuals for
+log linear model is lesser than the linear model, we conclude that the
+log linear model is best fit.
+
+The covariates selected for best linear model is Coast.direction,
+sandeel & cliff.height, where cliff.height holds more significance.
+
+The covariates selected for best log linear model is cliff.height, which
+holds more significance.
+
+##Task 4e Choosing an appropriate model, provide a 80% confidence
+interval for the number of breeding pairs at a site with coastal
+direction = North, sandeel concentration = 1.28, mean summer temperature
+= 20.7 and cliff height (log) = 3.04.
+
+```{r}
+#Form newdata based on the values provided
+newdata <- data.frame(Summer.temp=20.7, sandeel=1.28, 
+                      cliff.height=3.04, Coast.direction="North")
+
+#Predict the Confidence Interval
+pred_ci <- predict(log_bestmodel, newdata, interval = 'confidence', level = 0.80)
+
+#Display the confidence interval
+cat("\n\nConfidence interval after rounding off the predicted values is ",round(exp(pred_ci[2])), round(exp(pred_ci[3])))
+```
