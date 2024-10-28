@@ -1,4 +1,4 @@
-# Kittiwake-Data-Analysis-Applied-Statistics-and-Probability
+# Kittiwake Data Analysis Applied Statistics and Probability
 
 This project involves analyzing datasets provided by an ornithologist studying two sub-species of kittiwakes (black-legged and red-legged). The analysis addresses questions on kittiwake sightings, breeding trends, physical measurements, and environmental factors affecting breeding colonies.
 
